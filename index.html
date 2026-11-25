@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>G-Şarj İstasyonu Takip Sistemi</title>
+    <style>
+        :root {
+            --bg: #0b0f17;
+            --card: #131a26;
+            --card-border: #222d40;
+            --text: #f3f6fb;
+            --muted: #94a3b8;
+            --gold: #f5b942;
+            --free: #10b981;
+            --free-bg: rgba(16, 185, 129, 0.12);
+            --busy: #ef4444;
+            --busy-bg: rgba(239, 68, 68, 0.12);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 980px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .brand h1 {
+            font-size: 1.4rem;
+            color: var(--gold);
+            letter-spacing: 0.3px;
+        }
+
+        .brand p {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        /* Boş / Dolu Özet Barı */
+        .summary-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .summary-box {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .summary-box.free-box { border-left: 4px solid var(--free); }
+        .summary-box.busy-box { border-left: 4px solid var(--busy); }
+        .summary-box.total-box { border-left: 4px solid var(--gold); }
+
+        .summary-label { font-size: 0.85rem; color: var(--muted); }
+        .summary-val { font-size: 1.5rem; font-weight: 700; margin-top: 2px; }
+        .free-val { color: var(--free); }
+        .busy-val { color: var(--busy); }
+        .gold-val { color: var(--gold); }
+
+        /* Filtre Butonları */
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        .filter-btn {
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--card-border);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .filter-btn:hover { border-color: var(--gold); }
+        .filter-btn.active {
+            background: var(--gold);
+            color: #0b0f17;
+            border-color: var(--gold);
+            font-weight: 700;
+        }
+
+        /* İstasyon Kartları */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .station-card {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .station-card.is-free { border-color: rgba(16, 185, 129, 0.45); }
+        .station-card.is-busy { border-color: rgba(239, 68, 68, 0.45); }
+
+        .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .station-name { font-size: 1.05rem; font-weight: 700; }
+
+        .badge {
+            padding: 5px 10px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+        }
+
+        .badge-free {
+            background: var(--free-bg);
+            color: var(--free);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+
+        .badge-busy {
+            background: var(--busy-bg);
+            color: var(--busy);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            padding: 6px 0;
+            border-bottom: 1px dashed rgba(148, 163, 184, 0.14);
+        }
+
+        .info-row:last-child { border-bottom: none; }
+        .info-key { color: var(--muted); }
+        .info-val { font-weight: 600; text-align: right; }
+
+        .free-note {
+            background: var(--free-bg);
+            color: #6ee7b7;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        .help-box {
+            margin-top: 22px;
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 0.86rem;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .help-box code {
+            color: var(--gold);
+            background: rgba(245, 185, 66, 0.1);
+            padding: 2px 6px;
+            border-radius: 5px;
+        }
+
+        .template-pre {
+            margin-top: 10px;
+            background: #0b0f17;
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 12px 14px;
+            color: var(--text);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.86rem;
+            line-height: 1.5;
+            white-space: pre-line;
+            user-select: all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="brand">
+                <h1>⚡ G-Şarj Otopark Takip</h1>
+                <p>Kat bazlı şarj istasyonu doluluk ve kalan süre ekranı</p>
+            </div>
+            <div id="live-clock" style="font-size:0.9rem; color:var(--gold); font-weight:600;"></div>
+        </header>
+
+        <!-- Boş / Dolu Özet Alanı -->
+        <section class="summary-bar">
+            <div class="summary-box free-box">
+                <div>
+                    <div class="summary-label">Müsait (Boş) İstasyon</div>
+                    <div class="summary-val free-val" id="free-count">-</div>
+                </div>
+                <div id="free-floors-text" style="font-size:0.85rem; color:#6ee7b7; text-align:right;"></div>
+            </div>
+
+            <div class="summary-box busy-box">
+                <div>
+                    <div class="summary-label">Kullanımda (Dolu) İstasyon</div>
+                    <div class="summary-val busy-val" id="busy-count">-</div>
+                </div>
+                <div id="busy-floors-text" style="font-size:0.85rem; color:#fca5a5; text-align:right;"></div>
+            </div>
+
+            <div class="summary-box total-box">
+                <div>
+                    <div class="summary-label">Toplam Kat İstasyonu</div>
+                    <div class="summary-val gold-val" id="total-count">3</div>
+                </div>
+                <div style="font-size:0.8rem; color:var(--muted); text-align:right;">Canlı Senkron</div>
+            </div>
+        </section>
+
+        <!-- Filtreleme -->
+        <div class="filters">
+            <button class="filter-btn active" data-filter="all">Tümü</button>
+            <button class="filter-btn" data-filter="free">🟢 Sadece Boşlar</button>
+            <button class="filter-btn" data-filter="busy">🔴 Sadece Dolular</button>
+        </div>
+
+        <!-- Kartlar -->
+        <main class="grid" id="stations-grid"></main>
+
+        <div class="help-box">
+            <div>
+                Şarj başlatmak için aşağıdaki şablonu kopyalayıp değerleri doldurarak tek mesajda WhatsApp grubuna gönderebilirsin (Kat: 1/2/3, Blok: A1/A2/B3/B4, Daire: 1-36, Süre: 1-8 saat). Erken çıkmak için <code>!bitir 1</code> yazabilirsin; süre dolduğunda istasyon otomatik boşa çıkar.
+            </div>
+            <div class="template-pre">Kat: 1
+Blok: A1
+Daire: 14
+Plaka: 06 ABC 123
+Sure: 3</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDlhRe0Q51CnoGc-8kY16DOpCICeKNoPJs",
+            authDomain: "g-sarj.firebaseapp.com",
+            projectId: "g-sarj",
+            storageBucket: "g-sarj.firebasestorage.app",
+            messagingSenderId: "965308210789",
+            appId: "1:965308210789:web:2c75fbe2f9188de10b308c",
+            measurementId: "G-EJREK8F0PD"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const STATION_ORDER = [
+            { id: "kat_1", fallbackName: "-1. Kat Şarj İstasyonu", short: "-1. Kat" },
+            { id: "kat_2", fallbackName: "-2. Kat Şarj İstasyonu", short: "-2. Kat" },
+            { id: "kat_3", fallbackName: "-3. Kat Şarj İstasyonu", short: "-3. Kat" }
+        ];
+
+        let latestDocsMap = new Map();
+        let currentFilter = "all";
+
+        function formatRemaining(endTime) {
+            if (!endTime) return "-";
+            const diff = Math.max(0, endTime - Date.now());
+            const hours = Math.floor(diff / 3600000);
+            const mins = Math.floor((diff % 3600000) / 60000);
+            return `${hours} sa ${mins} dk`;
+        }
+
+        function formatClock(endTime) {
+            if (!endTime) return "-";
+            return new Date(endTime).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+        }
+
+        function render() {
+            const list = STATION_ORDER.map((meta) => {
+                const raw = latestDocsMap.get(meta.id) || {};
+                const isBusy = raw.status === "busy" && raw.endTime && Date.now() < raw.endTime;
+                return {
+                    id: meta.id,
+                    short: meta.short,
+                    name: raw.name || meta.fallbackName,
+                    status: isBusy ? "busy" : "free",
+                    flat: raw.flat || "-",
+                    plate: raw.user || "-",
+                    endTime: raw.endTime || null
+                };
+            });
+
+            const freeItems = list.filter(item => item.status === "free");
+            const busyItems = list.filter(item => item.status === "busy");
+
+            document.getElementById("free-count").textContent = freeItems.length;
+            document.getElementById("busy-count").textContent = busyItems.length;
+            document.getElementById("total-count").textContent = list.length;
+
+            document.getElementById("free-floors-text").textContent =
+                freeItems.length ? freeItems.map(i => i.short).join("\n") : "Boş kat yok";
+            document.getElementById("busy-floors-text").textContent =
+                busyItems.length ? busyItems.map(i => i.short).join("\n") : "Dolu kat yok";
+
+            const filtered = list.filter((item) => {
+                if (currentFilter === "free") return item.status === "free";
+                if (currentFilter === "busy") return item.status === "busy";
+                return true;
+            });
+
+            const grid = document.getElementById("stations-grid");
+            grid.innerHTML = filtered.map((item) => {
+                if (item.status === "free") {
+                    return `
+                        <article class="station-card is-free">
+                            <div class="card-top">
+                                <span class="station-name">${item.name}</span>
+                                <span class="badge badge-free">🟢 BOŞ</span>
+                            </div>
+                            <div class="free-note">Şu an kullanıma uygun. Şablonu doldurup WhatsApp grubuna göndererek başlatabilirsin.</div>
+                        </article>
+                    `;
+                }
+
+                return `
+                    <article class="station-card is-busy">
+                        <div class="card-top">
+                            <span class="station-name">${item.name}</span>
+                            <span class="badge badge-busy">🔴 DOLU</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-key">Daire / Blok</span>
+                            <span class="info-val">${item.flat}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-key">Plaka</span>
+                            <span class="info-val">${item.plate}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-key">Bitiş Saati</span>
+                            <span class="info-val">${formatClock(item.endTime)}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-key">Kalan Süre</span>
+                            <span class="info-val" style="color:var(--gold);">${formatRemaining(item.endTime)}</span>
+                        </div>
+                    </article>
+                `;
+            }).join("");
+        }
+
+        document.querySelectorAll(".filter-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                currentFilter = btn.dataset.filter;
+                render();
+            });
+        });
+
+        onSnapshot(collection(db, "stations"), (snapshot) => {
+            latestDocsMap.clear();
+            snapshot.forEach((docSnap) => {
+                latestDocsMap.set(docSnap.id, docSnap.data());
+            });
+            render();
+        }, (err) => {
+            console.error("Firestore dinleme hatası:", err);
+        });
+
+        setInterval(() => {
+            document.getElementById("live-clock").textContent =
+                new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+            render();
+        }, 1000);
+    </script>
+</body>
+</html>
